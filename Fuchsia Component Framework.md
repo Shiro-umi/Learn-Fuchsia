@@ -111,3 +111,78 @@ Load and run。同时为该component需要的功能提供访问权限。Framewor
 ### Destroy
 Destory component实例将永久删除其所有关联状态，并释放其消耗的系统资源。  
 一旦销毁，component实例将不复存在并且无法重新启动。仍然可以创建同一component的新实例，但是它们将具有与所有先前实例不同的自己的标识和状态。
+
+## Component声明
+Component declaration是一种机器可读的，对于该当component能做什么以及如何运行的描述。包括metadata（元数据，经过格式化的component信息）。Framework需要metadata去实例化这个component，并将它和其他component组合。  
+每个component都有一个declaration。对于那些分布在各个packages中的components，declaration通常通过component manifest file（组件清单文件）的形式。
+除了由framework声明，component也可以由resover（解析器）和runner（运行容器？）声明，并同时负责组件的运行。
+
+举个例子来说，一个计算器应用的声明可能会包含以下信息：
+
+- 计算器程序在其包中的位置
+- runner的name
+- 一个持久化存储的请求，以便再次启动的时候保存累加器状态
+- 一个对于使用特定功能来显示用户加冕的请求
+- 一个将自己的功能暴露给其他components的请求，以便其他components访问自己的累加寄存器，主要通过IPC
+
+## Component URLs  
+Component URLs指定从什么地方检索components declaration, 程序以及assets（拥有的文件或功能？）  
+
+Component可以根据URL方案从多种不同的来源被检索到。  
+
+一些典型的URL方案如下：
+
+- `fuchsia-boot`：从系统启动镜像中解析。这种方案用于在early boot期间且在package system可用之前，检索system operation必要的component。  
+  - Example: "fuchsia-boot:///#meta/devcoordinator.cm"（系统协调）
+- `fuchsia-pkg`：由Fuchsia包解析器将component解析为app package，这些component可以按需下载并保持最新状态。
+  - Example: "fuchsia-pkg://fuchsia.com/netstack#meta/netstack.cm" 
+- `http` and `https`：Web解析器将component解析为Web APP，用于将Web内容与framework集成在一起。
+  - Example: "https://fuchsia.dev/"  
+
+## Component Topology（组件拓扑）  
+Component Topology是一个用于描述component实例之间关系的数据结构。主要包含以下三项：  
+
+- Component instanse tree（实例树）：描述component实例通过何种方式组合（父子关系）
+- Capability routing graph（功能路由图）：描述component实例如何获取权限以调用其他component实例暴露在外的功能接口（供给关系）
+- Compartment tree（独立关系树）：描述component实例如何独立，以及component实例的sandbox中的哪些资源有可能被分享
+
+>TODO: Add a picture or a thousand words.
+
+Component Topology的结构对component的生命周期和功能权限有很大影响。
+
+### Hierarchical Composition（层级组合）
+任何数量的component实例都可以通过hierarchical composition组合为更复杂的component。
+在hierarchical composition中，父component创建并声明子component。新创建的子component依赖于父component提供的权限和功能。
+
+子component可通过如下方式创建：
+
+- Statically（静态）：parent在自己的component declaration中声明child，如果parent中的声明被移除，则children自动销毁
+- Dynamically（动态）：parent通过realm service（域服务）向自己声明的component collection中添加新的child，并用类似的方法销毁child
+
+以下几点性质需要注意：
+
+- child永远保持对parent的依赖
+- 不能被reparent（~~禁止套娃~~），不能对parent进行override
+- 当parent被销毁的时候，它持有的所有child均被同时销毁
+
+Component topology将这些父子关系的结构表示为component instanse tree。
+
+>TODO: Add a diagram of a component instance tree.  (~~有完没完？~~)
+
+### Encapsulation（封装）
+子component是被封装在parent域中的，child的功能不能从parent域外部直接调用。该封装模型类似于面向对象思想中的封装。
+
+### Realms（域）
+Realm是经过hierachical composition格式化的component实例子树。每个realm的根都是一个component，并且包括所有children和descendansts（子孙）节点。
+Realms在component topology中是非常重要的encapsulation boundaries（封装边界）。每个realm都拥有明确的权限来影响components的行为，比如：
+
+- 声明功能如何 **进入 / 外出 / 存在** 于一个域内
+- 与child components绑定并拥有访问所有children的service的权限
+- 创建或销毁子component
+
+### Monikers（别名）
+Moniker通过topological path在component tree中对component instance进行标识。Monikers会被系统日志收录，并用于持久化。
+
+详细说明 -> [Monikers](https://fuchsia.dev/fuchsia-src/concepts/components/monikers.md)
+
+### Capability Routing
