@@ -185,4 +185,48 @@ Moniker通过topological path在component tree中对component instance进行标�
 
 详细说明 -> [Monikers](https://fuchsia.dev/fuchsia-src/concepts/components/monikers.md)
 
-### Capability Routing
+### Capability Routing（功能路由）
+Components通过capability routiong获取使用其他component暴露于外部的功能。
+>TODO: Refactor existing manifests and capabilities to explain the basic concepts here. Draw parallels with constructor dependency injection. Include links to capability types. (~~第三个todo了！~~)
+
+### Compartments（隔离）
+Compartment是一个component实例的独立边界。它是维持components的confidentiality（密闭性），integrity（完整性）和availability（可用性）的必要机制。
+
+物理硬件也可以成为一种隔离。运行在同一组硬件上的components共享CPU，内存，存储以及外设。这些components可能会因为旁路，提权和物理攻击，以及运行在其他硬件上的components的威胁变得脆弱。系统安全取决于系统将功能委托给components的有效决策。
+
+[作业（job）](https://fuchsia.dev/fuchsia-src/glossary.md#job)也是一种隔离。在自己的job中运行component可以保证component无法访问到属于其他components或jobs的内存或功能。Framework还可以结束job以终结所有独立component（没有在其他jobs中创建新的进程）进程。
+
+[运行容器（runner）](https://fuchsia.dev/fuchsia-src/concepts/components/runners.md)为每一个当前runner运行的component提供隔离。Runner负责保护自己和所有在其中运行的进程。但是当所有项目共享同一个runtime environment时，该runtime environment会限制内核强制隔离（enforce isolation）的能力。
+
+**隔离空间（Compartments nest）：** runner提供的隔离位于jobs的隔离之中，而jobs隔离又位于硬件隔离之中。这种封装模式表明了每一层隔离的职责：内核负责jobs的隔离，而应用程序则不需要对jobs负责。
+
+一些隔离的强度会弱于其他一些隔离。Job的隔离优先度比runner更大，所以有的时候在不同的job隔离中分别拥有相同runner实例并由优先度更高的隔离来控制的情况也是有意义的。当然在单独的硬件上运行单独的component是最安全的，但也是不可能的。
+
+>TODO: Fill in more details when component framework APIs for assigning components to compartments have been formalized.
+
+### Framework Capabilities
+Components通过framework capabilities和自己的运行环境进行交互：
+
+- [Instrumentation Hooks（仪表勾？）](https://fuchsia.dev/fuchsia-src/concepts/components/instrumentation_hooks.md): 诊断和调试component
+- [Hub](https://fuchsia.dev/fuchsia-src/concepts/components/hub.md): 在runtime中查询component topology
+- [Realm](https://fuchsia.dev/fuchsia-src/concepts/components/realms.md): 管理/绑定子component
+- [Lifecycle](https://fuchsia.dev/fuchsia-src/concepts/components/lifecycle.md): 监听并处理lifecycle事件
+- [Shutdown](https://fuchsia.dev/fuchsia-src/concepts/components/shutdown.md): 发起有序shutdown
+- [Work Scheduler](https://fuchsia.dev/fuchsia-src/concepts/components/work_scheduler.md): 安排可延期工作
+
+### Framework Extensions
+Components使用framework extensions将framework和软件生态系统结合起来：
+
+- [Runners](https://fuchsia.dev/fuchsia-src/concepts/components/runners): 将编程语言的runtime与framework整合起来
+- [Resolvers](https://fuchsia.dev/fuchsia-src/concepts/components/resolvers): 整合软件交付系统
+  
+
+### Framework Development
+>TODO: Link to docs about how to build components, diagnostic tools, and debugging features.
+
+## Design Principles（设计原则）
+
+### Accountability（问责）
+
+
+
